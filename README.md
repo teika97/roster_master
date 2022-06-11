@@ -1,6 +1,6 @@
 # Roster Master
 
-A program that automatically generates a call roster for the month based on employee schedule requirements, team policy, and other user constraints.
+A program that automatically generates a call roster for the month.
 
 **Project Description:**
 
