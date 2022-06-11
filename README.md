@@ -1,4 +1,4 @@
-# roster_master
+# Roster Master
 
 To design a program to automate the generation of the call roster
 
