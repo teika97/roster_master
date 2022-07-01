@@ -18,7 +18,7 @@ As this is a side-project, the program uses the following open-source packages/s
 - Problem Objective
   - Minimise total variance between all employees' call credit
   - Satisfies all defined constraints 
-<img width="176" alt="Screenshot 2022-04-13 at 9 23 05 PM" src="https://user-images.githubusercontent.com/54014264/176854536-d576aa6f-4561-4e24-a111-7f9fc123bfcd.png">
+<img width="698" alt="Screenshot 2022-07-01 at 4 16 39 PM" src="https://user-images.githubusercontent.com/54014264/176854885-9c538839-9956-48e4-82bf-9aaf51f11c27.png">
 - Basic Constraints
   - Employee "Blocked" constraint: Employees cannot be assigned on a day they have blocked
   - Employee "Requested" constraint: Employees must be assigned on a day they have requested
