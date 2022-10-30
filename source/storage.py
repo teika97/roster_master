@@ -74,7 +74,7 @@ class Request:
         self.raw_data = raw_data.fillna('')
 
         self.roster_list = self.raw_data['Name']
-        self.exc_list = self.raw_data.loc[self.raw_data['Ex']=='Yes','Name']
+        self.exc_list = self.raw_data.loc[self.raw_data['Exc']=='Yes','Name']
         self.inc_list = self.roster_list.loc[~self.roster_list.isin(self.exc_list)]
         self.num_employees = len(self.roster_list)
         self.num_employees_exc = len(self.exc_list)
