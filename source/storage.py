@@ -15,7 +15,7 @@ class Month:
 
         self.roster_period = roster_period
         self.num_days = calendar.monthrange(start_datetime.year, start_datetime.month)[1]
-        end_datetime = start_datetime + timedelta(days=num_days-1)
+        end_datetime = start_datetime + timedelta(days=self.num_days-1)
 
         # Weekdays - Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4
         # Weekends - Saturday: 5, Sunday: 6
@@ -45,25 +45,23 @@ class Month:
 class Archive:
     def __init__(self, employee_type, raw_data):
         self.employee_type = employee_type
-        self.roster_list = self.raw_data['Name']
+        self.roster_list = raw_data.index
 
         raw_data.drop('Special_Days', axis=1, level=1, inplace=True)
         raw_data.drop('Normal_Days', axis=1, level=1, inplace=True)
         raw_data = raw_data.droplevel('Name', axis=1)
+        min_max = raw_data.agg(['min','max'])
+        mode = pd.DataFrame(raw_data.agg(lambda x: pd.Series.mode(x)[0])).transpose().rename({0: 'mode'})
 
-        self.min_max_mode = raw_data.agg(['min','max',lambda x: pd.Series.mode(x)[0]])
-        self.min_max_mode = self.min_max_mode.rename(index={'<lambda>': 'mode'})
-        
-        archive_data = pd.concat([raw_data, self.min_max_mode])
+        archive_data = pd.concat([raw_data, min_max, mode])
         carryover_data = archive_data.copy()
         carryover_data['Carry_Over'] = 0
         for col in archive_data.columns:
             # If employee cc score > mode, then result > 0, to be added to total_cc in model
             # If employee cc score < mode, then result < 0, to be deducted from total_cc in model
             carryover_data[col] = archive_data[col] - archive_data[col].loc['mode']
-            carryover_data['Carry_Over'] += archive_data[col]
+            carryover_data['Carry_Over'] += carryover_data[col]
             carryover_data['Carry_Over'] = carryover_data['Carry_Over'].fillna(0)
-        carryover_data['Name'] = self.roster_list
 
         self.archive_data = archive_data
         self.carryover_data = carryover_data
@@ -72,12 +70,12 @@ class Archive:
 class Request:
     def __init__(self, month, employee_type, raw_data, override_twoday, is_maxcalls, carryover_data):
         self.month = month
-        self.emp_type = employee_type
+        self.employee_type = employee_type
         self.raw_data = raw_data.fillna('')
 
         self.roster_list = self.raw_data['Name']
-        self.exc_list = self.raw_data.loc[self.raw_data['Exc']=='Yes','Name']
-        self.inc_list = self.raw_data.loc[self.roster_list.isin(self.exc_list)]
+        self.exc_list = self.raw_data.loc[self.raw_data['Ex']=='Yes','Name']
+        self.inc_list = self.roster_list.loc[~self.roster_list.isin(self.exc_list)]
         self.num_employees = len(self.roster_list)
         self.num_employees_exc = len(self.exc_list)
 
@@ -90,9 +88,11 @@ class Request:
         for emp_x in range(0, self.num_employees):  
             for day_x in range(0, self.month.num_days):
                 col = str(day_x+1)
+                #Add 0 in front of all days before day 10
+                if (day_x<9):
+                    col = "0" + str(day_x+1)
                 blocked_raw[emp_x, day_x] = (0 if self.raw_data.iloc[emp_x][col] in BLOCKED_TYPES else 1)
                 requested_raw[emp_x, day_x] = (1 if self.raw_data.iloc[emp_x][col] in REQUESTED_TYPES else 0)
-                                   
         # Employee blocked data
         blocked_data = pd.DataFrame(data = blocked_raw, columns = range(0, self.month.num_days), index = self.roster_list)
         self.blocked_data = blocked_data.stack().to_dict()
@@ -100,7 +100,7 @@ class Request:
         # Employee requested data
         requested_data = pd.DataFrame(data = requested_raw, columns = range(0, self.month.num_days), index = self.roster_list)
         self.requested_data = requested_data.stack().to_dict()
-
+        
         # Employee requested - 2 day constraint (yes/no)
         if (override_twoday):
             two_day_constraint_raw = self.raw_data['2D'].replace({'Yes': 0, 'No': 0}) # Set No for all employees to override original file input
@@ -110,14 +110,42 @@ class Request:
         self.twoday_data = two_day_constraint_data
 
         # Max calls for excluded employee
-        max_excluded_raw = self.raw_data.loc[self.raw_data['exc']=='Yes', 'Max']
+        max_excluded_raw = self.raw_data.loc[self.raw_data['Exc']=='Yes', 'Max']
         max_excluded_data = pd.DataFrame(data = max_excluded_raw.values, columns=['Max_Calls_Exc'], index=self.exc_list)
         self.max_data = max_excluded_data
 
         # Merge with archive carry over data
         # Extract carry-over values for all employees on current roster
-        carryover_data[carryover_data['Name'].isin(self.roster_list)]
-        self.carryover_data = carryover_data['Carry_Over']
+        carryover_data = raw_data.merge(carryover_data, left_on='Name', right_index=True, how='left')
+        carryover_data = carryover_data.set_index('Name')
+        carryover_data = carryover_data['Carry_Over']
+        self.carryover_data = carryover_data
+
+    def print_details(self):
+        
+        print("Roster period: " + self.month.roster_period + ", Employee type: " + self.employee_type)
+        
+        print("Raw data: ")
+        print(self.raw_data)
+
+        print("Roster list: ")
+        print(self.roster_list)
+
+        print("Excluded: ")
+        print(self.exc_list)
+
+        print("Included: ")
+        print(self.inc_list)
+
+        print("Two day data: ")
+        print(self.twoday_data)
+
+        print("Max data: ")
+        print(self.max_data)
+
+        print("Carry over data: ")
+        print(self.carryover_data)
+
 
     # TODO: Add methods to check for the feasibility of the request for:
     # (i) Daily feasibility: i.e. the day has at least one person
