@@ -1,11 +1,48 @@
+# Classes for data entities related to (i) Request (ii) Archive (iii) Month data (iv) Schedule
+import re
 import pandas as pd
 import numpy as np
 import calendar
 import datetime as dt
 from datetime import datetime, timedelta
+import holidays
 
 BLOCKED_TYPES = ['AL','TL','X','NSL','OIL','ML','PL','FCL','CCL','KKH','PDL','ACLS','HL','Hero']
 REQUESTED_TYPES = ['R','CR']
+
+
+class Setting:
+    def __init__(self, req_folder_name = "data", model_time_cutoff = 10, model_iterations = 30, is_maxcalls = True, use_cheat = False):
+        self.month_regex = "((?:Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec) 20[2-9][0-9])"
+        self.req_file_prefix_c = "Call requests (Consultant) - "
+        self.req_file_prefix_r = "Call requests (Reg) - "
+        self.req_file_regex_c = "Call requests \(Consultant\) - "+ self.month_regex + ".csv"
+        self.req_file_regex_r = "Call requests \(Reg\) - "+ self.month_regex + ".csv"
+        
+        self.req_folder_name = req_folder_name
+        self.req_date_regex = "%b %Y"
+        self.roster_archive_file_name = ("Roster_Archive_cheat.xlsx" if use_cheat else "Roster_Archive.xlsx")  
+
+        self.passcode_json_file_name = 'passcode_key.json'
+
+        self.model_time_cutoff = model_time_cutoff
+        self.model_iterations = model_iterations
+        self.is_maxcalls = is_maxcalls # Sets up maxcall constraint as max calls or equal calls
+        self.use_cheat = use_cheat
+
+    # Depending on setting of the is_maxcalls field - sets the output file name accordingly
+    def set_output_file_name(self):
+        self.output_file_name = "_Roster_" + str(model_time_cutoff) + ("s_maxcalls.xlsx" if is_maxcalls else "s_equalcalls.xlsx")
+
+
+class Holiday:
+    def __init__(self, roster_period):
+        # Public holidays in Singapore
+        sg_holidays = []
+        for date in holidays.Singapore(years=datetime.strptime(roster_period, '%b %Y').year).items():
+            sg_holidays.append(date[0])
+        self.sg_holidays = sg_holidays
+
 
 # Create dataframe summarizing date details for selected month
 class Month:
@@ -88,11 +125,15 @@ class Request:
         for emp_x in range(0, self.num_employees):  
             for day_x in range(0, self.month.num_days):
                 col = str(day_x+1)
+                
                 #Add 0 in front of all days before day 10
                 if (day_x<9):
-                    col = "0" + str(day_x+1)
+                    if (col not in raw_data.columns):
+                        col = "0" + str(day_x+1)
+
                 blocked_raw[emp_x, day_x] = (0 if self.raw_data.iloc[emp_x][col] in BLOCKED_TYPES else 1)
-                requested_raw[emp_x, day_x] = (1 if self.raw_data.iloc[emp_x][col] in REQUESTED_TYPES else 0)
+                requested_raw[emp_x, day_x] = (1 if self.raw_data.iloc[emp_x][col] in REQUESTED_TYPES else 0)                
+
         # Employee blocked data
         blocked_data = pd.DataFrame(data = blocked_raw, columns = range(0, self.month.num_days), index = self.roster_list)
         self.blocked_data = blocked_data.stack().to_dict()

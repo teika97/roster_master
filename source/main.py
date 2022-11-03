@@ -4,55 +4,56 @@ import pandas as pd
 import numpy as np
 import pyomo.environ as pyo
 import calendar
-import holidays
 import datetime as dt
 from datetime import datetime, timedelta
-from storage import Month, Archive, Request
-import gspread
-from oauth2client.service_account import ServiceAccountCredentials
-
+from storage import Setting, Month, Holiday, Archive, Request
+from tkinter import *
+from tkinter import ttk
+import reader
 
 cwd = os.getcwd()
 
-roster_archive_file_name = "Roster_Archive.xlsx"
-roster_period = 'Nov 2022'
+model_settings = Setting()
 
-roster_archive_c = pd.read_excel(os.path.join(cwd, 'data', roster_archive_file_name), sheet_name='Consultant', header=[0,1], index_col=[0])
-roster_archive_r = pd.read_excel(os.path.join(cwd, 'data', roster_archive_file_name), sheet_name='Reg', header=[0,1], index_col=[0])
-# Public holidays in Singapore
-sg_holidays = []
-for date in holidays.Singapore(years=datetime.strptime(roster_period, '%b %Y').year).items():
-    sg_holidays.append(date[0])
+# Get user input on whether to run for
+# (i) Both registra and consultant model
+# (ii) Only registra model
+# (iii) Only consultant model
+# TODO: Allow for updating of default option
+employee_type = input("\nDefault employee type is 'Both Reg and Consultant'\nKeep ('Y') or change ('1': Reg Only, '2': Con Only)\n?: ")
 
-roster_month = Month(roster_period, sg_holidays)
+# Get user input on whether to get model input for
+# (i) Latest month file from default "data" folder if no input - Only csv supported for now
+# (ii) Selected month from default "data" folder - Only csv supported for now
+# (iii) First tab from gsheet
+# (iv) Specific tab from gsheet
+# TODO: Allow for updating of default option
+# For now no support for selecting of folder - can add function to change default folder
+input_type = input("\nDefault import type is 'Gsheet - First Tab'\nKeep ('Y') or change ('1': CSV - Latest Month, '2': CSV - Selected Month, '3': Gsheet - Selected Tab)\n?: ")
+selected_value = None
+if (input_type == '2'):
+    selected_value = input("\nSelected Month (as Mon YYYY): ")
+elif (input_type == '3'):
+    selected_value = input("\nSelected Tab Name (as Mon YYYY): ")
 
-input_type = input("Import from gsheet or folder: ")
-if (input_type == "folder"):
-    req_file_regex_c = "Call requests (Consultant) - Nov 2022.csv"
-    req_file_regex_r = "Call requests (Reg) - Nov 2022.csv"
-    input_c = pd.read_csv(os.path.join(cwd, 'data', req_file_regex_c), skiprows = 1)
-    input_r = pd.read_csv(os.path.join(cwd, 'data', req_file_regex_r), skiprows = 1)
-elif (input_type == "gsheet"):
-    scope = ['https://spreadsheets.google.com/feeds','https://www.googleapis.com/auth/drive']
-    creds = ServiceAccountCredentials.from_json_keyfile_name(os.path.join(cwd,'source','passcode_key.json'), scope)
-    client = gspread.authorize(creds)
+# Interface will be drop down list and not allow for error in user input
+if (employee_type == 'Y') | (employee_type == '1') | (employee_type == '2'):
+    if (employee_type == 'Y') | (employee_type == '1'):
+        file_date_str, input_r, roster_archive_r = reader.read_data(cwd, model_settings, "Reg", input_type, selected_value) 
+    if (employee_type == 'Y') | (employee_type == '2'):
+        file_date_str, input_c, roster_archive_c = reader.read_data(cwd, model_settings, "Con", input_type, selected_value) 
+else:
+    raise Exception("Input error: Invalid value for employee_type")
 
-    sheet_c = client.open('Call requests (Consultant)')
-    sheet_r = client.open('Call requests (Reg)')
+roster_period = file_date_str
+sg_holidays = Holiday(roster_period)
+roster_month = Month(roster_period, sg_holidays.sg_holidays)
 
-    sheet_instance_c = sheet_c.get_worksheet(0)
-    sheet_instance_r = sheet_r.get_worksheet(0)
-
-    sheet_name_c = sheet_instance_c.title
-    sheet_name_r = sheet_instance_r.title
-
-    input_c = pd.DataFrame.from_dict(sheet_instance_c.get_all_records(head=2))
-    input_r = pd.DataFrame.from_dict(sheet_instance_r.get_all_records(head=2))
-
-archive_c = Archive('Consultant', roster_archive_c)
-archive_r = Archive('Registra', roster_archive_r)
-request_c = Request(roster_month, 'Consultant', input_c, False, False, archive_c.carryover_data)
-request_r = Request(roster_month, 'Registra', input_r, False, False, archive_r.carryover_data)
-
-request_c.print_details()
-request_r.print_details()
+if (employee_type == 'Y') | (employee_type == '1'):
+    archive_r = Archive('Registra', roster_archive_r)
+    request_r = Request(roster_month, 'Registra', input_r, False, False, archive_r.carryover_data)
+    request_r.print_details()
+if (employee_type == 'Y') | (employee_type == '2'):
+    archive_c = Archive('Consultant', roster_archive_c)
+    request_c = Request(roster_month, 'Consultant', input_c, False, False, archive_c.carryover_data)
+    request_c.print_details()
