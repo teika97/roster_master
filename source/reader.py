@@ -87,7 +87,7 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
         roster_archive_r = pd.read_excel(roster_archive_path, sheet_name='Reg', header=[0,1], index_col=[0])
 
         # First tab of gsheet
-        if (input_type == 'Y'):
+        if (input_type == '1'):
             sheet_r = client.open('Call requests (Reg)')
             sheet_instance_r = sheet_r.get_worksheet(0)
             sheet_name_r = sheet_instance_r.title
@@ -99,13 +99,13 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
             input_r = pd.DataFrame.from_dict(sheet_instance_r.get_all_records(head=2)) # Skip first row due to formatting of gsheet
         
         # CSV File with latest month
-        elif (input_type == '1'):
+        elif (input_type == '2'):
             file_date_str, latest_file_r = get_latest(setting.req_folder_name, setting.req_file_regex_r, setting.req_date_regex)
             print("Latest file found: " + file_date_str)     
             input_r = pd.read_csv(latest_file_r, skiprows = 1) # Note skip_rows = 1 is to match offline excel format to online gsheet
 
         # CSV File with selected month
-        elif (input_type == '2'):
+        elif (input_type == '3'):
             req_file_name_r = setting.req_file_prefix_r + selected_value + ".csv"
             req_file_path_r = os.path.join(cwd, setting.req_folder_name, req_file_name_r)
             if (dt.datetime.strptime(selected_value, "%b %Y")):
@@ -116,7 +116,7 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
             print(file_date_str + " file found.")     
 
         # Selected tab of gsheet
-        elif (input_type == '3'):
+        elif (input_type == '4'):
             sheet_r = client.open('Call requests (Reg)')
             sheet_instance_r = sheet_r.worksheet(selected_value)
             sheet_name_r = selected_value
@@ -136,7 +136,7 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
         roster_archive_c = pd.read_excel(roster_archive_path, sheet_name='Consultant', header=[0,1], index_col=[0])
 
         # First tab of gsheet
-        if (input_type == 'Y'):
+        if (input_type == '1'):
             sheet_c = client.open('Call requests (Consultant)')
             sheet_instance_c = sheet_c.get_worksheet(0)
             sheet_name_c = sheet_instance_c.title
@@ -148,12 +148,12 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
             input_c = pd.DataFrame.from_dict(sheet_instance_c.get_all_records(head=2)) # Skip first row due to formatting of gsheet
         
         # CSV File with latest month
-        elif (input_type == '1'):
+        elif (input_type == '2'):
             file_date_str, latest_file_c = get_latest(setting.req_folder_name, setting.req_file_regex_c, setting.req_date_regex)
             input_c = pd.read_csv(latest_file_c, skiprows = 1)
 
         # CSV File with selected month
-        elif (input_type == '2'):
+        elif (input_type == '3'):
             req_file_name_c = setting.req_file_prefix_c + selected_value + ".csv"
             req_file_path_c = os.path.join(cwd, setting.req_folder_name, req_file_name_c)
             if (dt.datetime.strptime(selected_value, "%b %Y")):
@@ -164,7 +164,7 @@ def read_data(cwd, setting, employee_type, input_type, selected_value=None):
             print(file_date_str + " file found.")     
 
         # Selected tab of gsheet
-        elif (input_type == '3'):
+        elif (input_type == '4'):
             sheet_c = client.open('Call requests (Consultant)')
             sheet_instance_c = sheet_c.worksheet(selected_value)
             sheet_name_c = selected_value
