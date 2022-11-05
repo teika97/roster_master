@@ -36,18 +36,22 @@ class Setting:
 
 
 class Holiday:
-    def __init__(self, roster_period):
+    def __init__(self):
+        self.sg_holidays = []
+
+    def set_holidays(self, roster_period):
         # Public holidays in Singapore
-        sg_holidays = []
         for date in holidays.Singapore(years=datetime.strptime(roster_period, '%b %Y').year).items():
-            sg_holidays.append(date[0])
-        self.sg_holidays = sg_holidays
+            self.sg_holidays.append(date[0])
+
 
 
 # Create dataframe summarizing date details for selected month
 class Month:
-    def __init__(self, roster_period, holidays):
-        
+    def __init__(self):
+        self.month_data = pd.DataFrame()
+
+    def set_month(self, roster_period, holidays):
         start_datetime = datetime.strptime(roster_period, '%b %Y') #Changed date regex from %b-%Y
 
         self.roster_period = roster_period
@@ -56,18 +60,15 @@ class Month:
 
         # Weekdays - Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4
         # Weekends - Saturday: 5, Sunday: 6
-        month_data = pd.DataFrame()
-        month_data['date'] = pd.date_range(start_datetime.date(), end_datetime.date())
-        month_data['day'] = pd.to_datetime(month_data['date']).dt.day
-        month_data['date'] = pd.to_datetime(month_data['date']).dt.date
-        month_data['is_ph'] = [1 if val in holidays else 0 for val in month_data['date']]
-        month_data['is_weekday'] = [1 if val.weekday()<=4 else 0 for val in month_data['date']]
-        month_data['is_weekend'] = [1 if val.weekday()>4 else 0 for val in month_data['date']]
+        self.month_data['date'] = pd.date_range(start_datetime.date(), end_datetime.date())
+        self.month_data['day'] = pd.to_datetime(self.month_data['date']).dt.day
+        self.month_data['date'] = pd.to_datetime(self.month_data['date']).dt.date
+        self.month_data['is_ph'] = [1 if val in holidays else 0 for val in self.month_data['date']]
+        self.month_data['is_weekday'] = [1 if val.weekday()<=4 else 0 for val in self.month_data['date']]
+        self.month_data['is_weekend'] = [1 if val.weekday()>4 else 0 for val in self.month_data['date']]
         # To exclude days which are is_ph from is_weekday and is_weekend
-        month_data['is_weekday'] = month_data.apply(lambda x: x['is_weekday'] if x['is_ph']==0 else 0, axis=1)
-        month_data['is_weekend'] = month_data.apply(lambda x: x['is_weekend'] if x['is_ph']==0 else 0, axis=1)
-
-        self.month_data = month_data
+        self.month_data['is_weekday'] = self.month_data.apply(lambda x: x['is_weekday'] if x['is_ph']==0 else 0, axis=1)
+        self.month_data['is_weekend'] = self.month_data.apply(lambda x: x['is_weekend'] if x['is_ph']==0 else 0, axis=1)
         
     def ph_data(self):
         return self.month_data['is_ph'].to_numpy()
@@ -78,9 +79,14 @@ class Month:
     def we_data(self):
         return self.month_data['is_weekend'].to_numpy()
 
+class InputData:
+    def set_inputdata(self, file_date_str, input_data, roster_archive):
+        self.file_date_str = file_date_str
+        self.input_data = input_data
+        self.roster_archive = roster_archive
 
 class Archive:
-    def __init__(self, employee_type, raw_data):
+    def set_archive(self, employee_type, raw_data):
         self.employee_type = employee_type
         self.roster_list = raw_data.index
 
@@ -103,9 +109,8 @@ class Archive:
         self.archive_data = archive_data
         self.carryover_data = carryover_data
 
-
 class Request:
-    def __init__(self, month, employee_type, raw_data, override_twoday, is_maxcalls, carryover_data):
+    def set_request(self, month, employee_type, raw_data, override_twoday, is_maxcalls, carryover_data):
         self.month = month
         self.employee_type = employee_type
         self.raw_data = raw_data.fillna('')
@@ -125,7 +130,7 @@ class Request:
         for emp_x in range(0, self.num_employees):  
             for day_x in range(0, self.month.num_days):
                 col = str(day_x+1)
-                
+
                 #Add 0 in front of all days before day 10
                 if (day_x<9):
                     if (col not in raw_data.columns):

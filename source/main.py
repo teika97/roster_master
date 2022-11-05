@@ -6,16 +6,21 @@ import pyomo.environ as pyo
 import calendar
 import datetime as dt
 from datetime import datetime, timedelta
-from storage import Setting, Month, Holiday, Archive, Request
+from storage import Setting, Month, Holiday, Archive, Request, InputData
 from tkinter import *
 from tkinter.messagebox import showinfo
 from tkinter import ttk
 import reader
 
 cwd = os.getcwd()
-model_settings = Setting()
 
-# Set up main frame for Roster Master App
+# Initialize all variables
+model_settings = Setting()
+sg_holidays = Holiday()
+roster_month = Month()
+input_r, archive_r, request_r = InputData(), Archive(), Request()
+input_c, archive_c, request_c = InputData(), Archive(), Request()
+
 root = Tk()
 root.title("Roster Master")
 mainframe = ttk.Frame(root, padding = "3 3 12 12")
@@ -34,17 +39,23 @@ def hide(event):
     else:
         selected_input.pack_forget()
 
-
 def extract_data():
     """ handle the input changed event """
 
     # Interface will be drop down list and not allow for error in user input
+    emp_type = employee_type.get()
     input_dict = {"Gsheet - First Tab":'1', "CSV - Latest Month":'2', "CSV - Selected Month":'3', "Gsheet - Selected Tab":'4'}
-    if (employee_type.get() == 'Both') | (employee_type.get() == 'Reg') | (employee_type.get() == 'Con'):
-        if (employee_type.get() == 'Both') | (employee_type.get() == 'Reg'):
-            file_date_str, input_r, roster_archive_r = reader.read_data(cwd, model_settings, "Reg", input_dict[input_type.get()], selected_value.get()) 
-        if (employee_type.get() == 'Both') | (employee_type.get() == 'Con'):
-            file_date_str, input_c, roster_archive_c = reader.read_data(cwd, model_settings, "Con", input_dict[input_type.get()], selected_value.get()) 
+    input_idx = input_dict[input_type.get()]
+    selected_val = selected_value.get()
+
+    if (emp_type == 'Both') | (emp_type == 'Reg') | (emp_type == 'Con'):
+        if (emp_type == 'Both') | (emp_type == 'Reg'):
+            file_date_str, raw_input_r, roster_archive_r = reader.read_data(cwd, model_settings, "Reg", input_idx, selected_val) 
+            input_r.set_inputdata(file_date_str, raw_input_r, roster_archive_r)
+        if (emp_type == 'Both') | (emp_type == 'Con'):
+            file_date_str, raw_input_c, roster_archive_c = reader.read_data(cwd, model_settings, "Con", input_idx, selected_val) 
+            input_c.set_inputdata(file_date_str, raw_input_c, roster_archive_c)
+
     else:
         showinfo(
             title='Input Error!',
@@ -52,16 +63,17 @@ def extract_data():
         )
 
     roster_period = file_date_str
-    sg_holidays = Holiday(roster_period)
-    roster_month = Month(roster_period, sg_holidays.sg_holidays)
+    sg_holidays.set_holidays(roster_period)
+    roster_month.set_month(roster_period, sg_holidays.sg_holidays)
 
-    if (employee_type.get() == 'Both') | (employee_type.get() == 'Reg'):
-        archive_r = Archive('Registra', roster_archive_r)
-        request_r = Request(roster_month, 'Registra', input_r, False, False, archive_r.carryover_data)
+    if (emp_type == 'Both') | (emp_type == 'Reg'):
+        archive_r.set_archive('Registra', roster_archive_r)
+        request_r.set_request(roster_month, 'Registra', raw_input_r, False, False, archive_r.carryover_data)
         request_r.print_details()
-    if (employee_type.get() == 'Both') | (employee_type.get() == 'Con'):
-        archive_c = Archive('Consultant', roster_archive_c)
-        request_c = Request(roster_month, 'Consultant', input_c, False, False, archive_c.carryover_data)
+
+    if (emp_type == 'Both') | (emp_type == 'Con'):
+        archive_c.set_archive('Consultant', roster_archive_c)
+        request_c.set_request(roster_month, 'Registra', raw_input_c, False, False, archive_c.carryover_data)
         request_c.print_details()
         
 
