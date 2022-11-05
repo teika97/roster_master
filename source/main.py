@@ -27,11 +27,17 @@ mainframe = ttk.Frame(root, padding = "3 3 12 12")
 root.columnconfigure(0, weight=1)
 root.rowconfigure(0, weight=1)
 
-def check_selected(new_value):
-    date_pattern = model_settings.req_date_regex
-    if re.fullmatch(date_pattern, new_value) is None:
+# Validate the input for selected month/tab - must be in %b %Y date format
+# Show error message when invalid input
+def validate():
+    date_pattern = model_settings.month_regex
+    if re.search(date_pattern, selected_value.get()) is None:
+        showinfo(
+            title='Input Error',
+            message=f'Please input month as Mon YYYY format'
+        )
         return False
-check_selected_wrapper = (root.register(check_selected), '%P')
+    return True
 
 def hide(event):
     if (input_type.get() == "Gsheet - Selected Tab") | (input_type.get() == "CSV - Selected Month"):
@@ -77,6 +83,9 @@ def extract_data():
         request_c.print_details()
         
 
+button = Button(root, text="Extract Data", command=extract_data)
+button.pack()
+
 # Set up drop down list for employee_type
 employee_type = StringVar()
 employee_type.set('Both') # Default value
@@ -100,9 +109,8 @@ selected_value = StringVar()
 first_day_of_next_month = (dt.datetime.now().replace(day=1) + dt.timedelta(days=32)).replace(day=1)
 selected_value.set(first_day_of_next_month.strftime('%b %Y'))
 selected_input = Entry(root, textvariable=selected_value)
+selected_input.config(validate='focusout', validatecommand=validate)
 
-button = Button(root, text="Extract Data", command=extract_data)
-button.pack()
 
 root.mainloop()
 
